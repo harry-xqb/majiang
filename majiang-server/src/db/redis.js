@@ -42,8 +42,8 @@ const del = (key) => {
   redisClient.del(key)
 }
 // list添加
-const listPush = (key, arr) => {
-    redisClient.send_command('rpush', [key, ...arr])
+const listPush = (key, value) => {
+  redisClient.send_command('rpush', [key, ...parseToArray(value)])
 }
 // 移除list中的元素
 const listRemove = (key, value) => {

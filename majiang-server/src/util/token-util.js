@@ -4,6 +4,7 @@
  * @date  2020/12/11 10:24
  */
 const RedisUtil = require('../db/redis')
+const {createUUID} = require("./common-util");
 const TOKEN_PREFIX = 'TOKEN:'
 
 // 生成token,并设置cookie
