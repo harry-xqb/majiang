@@ -19,18 +19,23 @@ router.post('/login',  async (ctx, next) => {
   ctx.body = ResponseModel.ofSuccess({token})
 });
 
+router.get('/socketListInfo', authenticationFilter,async (ctx, next) => {
+  const user = ctx.session
+  ctx.body = ResponseModel.ofSuccess(await UserService.getSocketUserList(user))
+})
+
 /**
  * 获取当前登录用户信息
  */
 router.get('/info', authenticationFilter, async (ctx, next) => {
-  ctx.body = ctx.session;
+  ctx.body = ResponseModel.ofSuccess(ctx.session);
 })
 
 /**
  * 创建用户
  */
 router.post('/create', async (ctx, next) => {
-  ctx.body = await UserService.createUser(ctx.request.body)
+  ctx.body = ResponseModel.ofSuccess(await UserService.createUser(ctx.request.body))
 })
 
 module.exports = router

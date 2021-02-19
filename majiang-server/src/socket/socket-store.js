@@ -48,6 +48,10 @@ const SOCKET_MESSAGE_TYPE = {
     code: 2002,
     name: '系统消息->被挤下线'
   },
+  SYSTEM_DISCONNECT: {
+    code: 2003,
+    name: '系统消息->掉线'
+  },
 }
 
 /**

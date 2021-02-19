@@ -16,6 +16,18 @@ const getById = async (id) => {
   const sql = `select * from user where id = ${escape(id)}`
   return exec(sql)
 }
+// 获取ids中的所有用户
+const getByIds = async (ids) => {
+  const inSql = "(" + ids.map(id => escape(id)).join(',') + ")"
+  const sql = `select * from user where id in ${inSql}`
+  return exec(sql)
+}
+// 获取不在指定ids范围的用户
+const getByNotInIds = async (ids) => {
+  const inSql = "(" + ids.map(id => escape(id)).join(',') + ")"
+  const sql = `select * from user where id not in ${inSql}`
+  return exec(sql)
+}
 // 创建用户
 const createUser = async (user = {}) => {
   const {id, username, password, phone } = user
@@ -39,5 +51,7 @@ module.exports = {
   getByUsername,
   getById,
   createUser,
-  getByPhone
+  getByPhone,
+  getByNotInIds,
+  getByIds
 }
