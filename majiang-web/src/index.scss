@@ -14,7 +14,8 @@ code {
 
 @mixin flexCommon {
   display: flex;
-  margin-top: 30vh;
+  position: relative;
+  top: 300px;
   justify-content: center;
 }
 

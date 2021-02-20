@@ -53,7 +53,8 @@ const Home = () => {
   }
 
   const createWebsocket = () => {
-    const ws = new WebSocket(`ws://localhost:3000/home/${getToken()}`)
+    const port = window.location.port
+    const ws = new WebSocket(`ws://localhost:${port}/websocket/home/${getToken()}`)
     ws.onmessage = (evt) => {
       const response = JSON.parse(evt.data)
       if(response.code === 0) {
