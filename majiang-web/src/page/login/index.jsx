@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Form, Input, Button } from 'antd';
 import { useHistory } from "react-router-dom";
 import http from '../../util/http'
+import {setToken} from "../../util/token-util";
 
 const layout = {
   labelCol: { span: 8 },
@@ -25,16 +26,17 @@ const Login = (props) => {
     const { success, data } = await http.post('/user/login', {data: values})
     setLoading(false)
     if(success) {
-      localStorage.setItem('token', data.token)
+      setToken(data.token)
       history.push('/home')
     }
   }
 
   return (
-    <div className='container'>
+    <div className='flex-container-col' style={{alignItems: 'center'}}>
       <Form
         {...layout}
         onFinish={handleFinish}
+        style={{marginLeft: -100}}
       >
         <Form.Item
           label="用户名"

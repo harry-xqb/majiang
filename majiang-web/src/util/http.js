@@ -5,6 +5,7 @@
  */
 import axios from "axios";
 import { message } from "antd";
+import {delToken, getToken} from "./token-util";
 axios.defaults.timeout = 5000;
 axios.defaults.baseURL = "/api";
 
@@ -40,7 +41,7 @@ const request = (url, config) => {
     }
   }
   config.headers = {
-    token: localStorage.getItem('token')
+    token: getToken()
   }
   return axios({
     url,
@@ -56,7 +57,7 @@ const request = (url, config) => {
     }
     if(responseData.code === 401 && config.authRedirect) {
       message.error('未登录或token过期')
-      localStorage.removeItem('token')
+      delToken()
       window.history.pushState(null, null, '/login')
     }
     return errorHandler(config.onError, responseData)

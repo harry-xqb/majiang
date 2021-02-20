@@ -1,12 +1,16 @@
-.container {
+.userInfo {
   display: flex;
-  justify-content: center;
-  margin: 30vh;
-  .userInfo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 0 50px;
-    min-width: 300px;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 50px;
+  min-width: 300px;
+}
+.roomNumberContainer{
+  display: flex;
+  justify-content: space-around;
+  .roomNumberInput {
+    width: 50px;
+    height: 50px;
+    text-align: center;
   }
 }

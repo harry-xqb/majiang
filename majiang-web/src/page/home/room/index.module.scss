@@ -1,0 +1,48 @@
+.side {
+  width: 200px;
+}
+$absolutePadding: 5px;
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 50px;
+  .room {
+    min-width: 500px;
+    min-height: 500px;
+    padding: 20px;
+    border: 1px solid #EEEEEE;
+    position: relative;
+    .user {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .bottom {
+      position: absolute;
+      bottom: $absolutePadding;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .right {
+      position: absolute;
+      right: $absolutePadding;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .top {
+      position: absolute;
+      top: $absolutePadding;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .left {
+      position: absolute;
+      left: $absolutePadding;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+  }
+}
+

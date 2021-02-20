@@ -1,6 +1,6 @@
 import React from 'react'
-import { Redirect } from "react-router-dom";
-import Home from "../page/home";
+import {Redirect} from "react-router-dom";
+import {getToken} from "../util/token-util";
 
 /**
  *
@@ -9,7 +9,7 @@ import Home from "../page/home";
  */
 const RouteGuard = ({ children }) => {
 
-  if(!localStorage.getItem('token')) {
+  if(!getToken()) {
     return <Redirect to="/login" />
   }
   return <>

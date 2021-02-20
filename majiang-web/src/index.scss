@@ -12,9 +12,16 @@ code {
     monospace;
 }
 
-.container {
+@mixin flexCommon {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   margin-top: 30vh;
+  justify-content: center;
+}
+
+.flex-container-col {
+  @include flexCommon();
+  flex-direction: column;
+}
+.flex-container-row {
+  @include flexCommon();
 }
