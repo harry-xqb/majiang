@@ -34,7 +34,7 @@ const request = (url, config) => {
       Object.keys(resultBody).forEach(key => {
         requestParams += `&${key}=${resultBody[key]}`
       })
-      url = url + requestParams
+      url = (url + requestParams).replace('1=1&', '').replace('1=1', '')
       config.data = null
     }else {
       config.data = resultBody
@@ -58,7 +58,8 @@ const request = (url, config) => {
     if(responseData.code === 401 && config.authRedirect) {
       message.error('未登录或token过期')
       delToken()
-      window.history.pushState(null, null, '/login')
+      window.location = '/login'
+      return
     }
     return errorHandler(config.onError, responseData)
   }).catch(err => {

@@ -6,6 +6,7 @@ import {HomeContext} from "../index";
 import OnLineList from "../online-list";
 import {useHistory} from 'react-router-dom'
 import EnterRoomModal from "./EnterRoomModal";
+import http from "../../../util/http";
 
 /**
  *
@@ -17,6 +18,8 @@ const Lobby = () => {
   const { state } = useContext(HomeContext)
 
   const history = useHistory()
+
+  const [createLoading, setCreateLoading] = useState(false)
 
   const [enterRoomModalVisible, setEnterRoomModalVisible] = useState(false)
 
@@ -32,6 +35,17 @@ const Lobby = () => {
     });
   }
 
+  const handleCreateRoom = async () => {
+    setCreateLoading(true)
+    const { success, data } = await http.post('/room/create')
+    setCreateLoading(false)
+    if(success) {
+      message.success('创建成功!')
+      history.push('/home/room/' + data.roomNumber)
+    }
+  }
+
+
   return (
     <div className='flex-container-row'>
       <div style={{width: 200}}>
@@ -46,7 +60,7 @@ const Lobby = () => {
           <Button type='primary' onClick={() => setEnterRoomModalVisible(true)}>
             加入房间
           </Button>
-          <Button type='primary' style={{marginLeft: 30}} icon={<PlusOutlined/>}>
+          <Button type='primary' style={{marginLeft: 30}} icon={<PlusOutlined/>} onClick={handleCreateRoom} loading={createLoading}>
             创建房间
           </Button>
         </div>

@@ -1,11 +1,13 @@
 import React, {useContext, useEffect, useState} from 'react'
-import {useParams} from 'react-router-dom'
+import {useHistory, useParams} from 'react-router-dom'
 import OnLineList from "../online-list";
 import {Button, Modal} from "antd";
 import {HomeContext} from "../index";
 import styles from './index.module.scss'
 import User, {PREPARE_STATUS, USER_POSITION} from "./User";
-import { useHistory } from 'react-router-dom'
+import http from "../../../util/http";
+import {setRoomDataAction} from "../reducer";
+
 /**
  *
  * @author  Ta_Mu
@@ -15,49 +17,82 @@ const Room = () => {
 
   const { roomNumber } = useParams()
 
-  const { state } = useContext(HomeContext)
+  const { state, dispatch } = useContext(HomeContext)
 
   const [roomLoading, setRoomLoading] = useState(false)
 
   const history = useHistory()
 
   useEffect(() => {
-
+      getRoomInfo(roomNumber)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const getRoomInfo = () => {
-
+  const getRoomInfo = async (roomNumber) => {
+    setRoomLoading(true)
+    const { success, code, message, data} = await http.get('/room/info/' + roomNumber, {onError: false})
+    setRoomLoading(false)
+    if(success) {
+      dispatch(setRoomDataAction(roomNumber, data.roomInfo, data.roomUserList))
+    }else {
+      if(code === 404) {
+        Modal.info({
+          title: message,
+          onOk() {
+            history.push('/home/lobby')
+          }
+        })
+      }else {
+        message.error(message)
+      }
+    }
   }
 
   const handleBackToLobby = () => {
     Modal.confirm({
-      title: '是否退出当前房间',
+      title: '确认退出当前房间',
       onOk() {
+        http.post('/room/exit', {data: {roomNumber}})
+        dispatch(setRoomDataAction(null, {}, []))
         history.push('/home/lobby')
       }
     })
   }
-
+  const handleDisbandRoom = () => {
+    Modal.confirm({
+      title: '确认解散当前房间',
+      onOk() {
+        http.post('/room/disband', {data: {roomNumber}})
+        dispatch(setRoomDataAction(null, {}, []))
+        history.push('/home/lobby')
+      }
+    })
+  }
   return (
-    <div className='flex-container-row' style={{marginTop: 50}}>
-      <div className={styles.side}>
-        <OnLineList showInvite={true}/>
-      </div>
-      <div className={styles.center}>
-        <div style={{marginBottom: 10}}>
-          房间号：{ roomNumber }
+      <div className='flex-container-row'>
+        <div className={styles.side}>
+          <OnLineList showInvite={true}/>
         </div>
-        <div className={styles.room}>
-          <User username={state.user?.username} position={USER_POSITION.BOTTOM}/>
-          <User username={state.user?.username} position={USER_POSITION.RIGHT} status={PREPARE_STATUS.READY}/>
-          <User username={state.user?.username} position={USER_POSITION.TOP}/>
-          <User username={state.user?.username} position={USER_POSITION.LEFT}/>
+          <div className={styles.center}>
+            {/*<Spin spinning={roomLoading}>*/}
+              <div style={{marginBottom: 10}}>
+                房间号：{ roomNumber }
+              </div>
+              <div className={styles.room}>
+                <User username={state.user?.username} position={USER_POSITION.BOTTOM}/>
+                <User username={state.user?.username} position={USER_POSITION.RIGHT} status={PREPARE_STATUS.READY}/>
+                <User username={state.user?.username} position={USER_POSITION.TOP}/>
+                <User username={state.user?.username} position={USER_POSITION.LEFT}/>
+              </div>
+            {/*</Spin>*/}
+          </div>
+        <div className={styles.side}>
+          <Button onClick={handleBackToLobby}>回到大厅</Button>
+          {
+            state.room?.roomInfo?.hostId === state.user.id && <Button onClick={handleDisbandRoom} style={{marginLeft: 20}}>解散房间</Button>
+          }
         </div>
       </div>
-      <div className={styles.side}>
-        <Button onClick={handleBackToLobby}>回到大厅</Button>
-      </div>
-    </div>
   )
 }
 
