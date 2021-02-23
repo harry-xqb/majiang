@@ -77,14 +77,17 @@ const getSocketUserList = async (user) => {
   }
 }
 // 更新socket中用户状态信息
-const updateSocketUser = async (user, data) => {
-  const userId = user.id
+const updateSocketUser = (userId, data) => {
   redis.hashSet(SOCKET_USERS, userId, JSON.stringify(data))
 }
 // 获取用户的socket信息
 const getSocketData = async (user) => {
   const userId = user.id
-  return await redis.hashGet(SOCKET_USERS, userId)
+  const userStr = await redis.hashGet(SOCKET_USERS, userId)
+  if(userStr) {
+    return JSON.parse(userStr)
+  }
+  return userStr
 }
 // 清除socket信息
 const deleteSocketData = async (user) => {
@@ -98,10 +101,18 @@ const deleteSocketData = async (user) => {
 const getById = async (id) => {
   return UserDao.getById(id)
 }
+/**
+ * 通过id列表获取用户列表
+ * @param ids id列表
+ */
+const getByIds = async (ids) => {
+  return UserDao.getByIds(ids)
+}
 
 module.exports = {
   login,
   getById,
+  getByIds,
   createUser,
   getSocketUserList,
   updateSocketUser,

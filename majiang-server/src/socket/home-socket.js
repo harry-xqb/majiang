@@ -25,10 +25,8 @@ router.all('/home/:tokenId', socketExceptionFilter, async (ctx) => {
   // 如果当前用户没有socket状态，则设置为在线
   let socketData = await getSocketData(user)
   if(!socketData) {
-    await updateSocketUser(user, {status: SOCKET_USER_STATUS.ONLINE})
+    await updateSocketUser(userId, {status: SOCKET_USER_STATUS.ONLINE})
     socketData = {status: SOCKET_USER_STATUS.ONLINE}
-  }else {
-    socketData = JSON.parse(socketData)
   }
   const otherUserIds = Object.keys(socketStore).filter(id => id !== userId)
   socketStore[userId] = ctx.websocket

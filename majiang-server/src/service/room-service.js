@@ -7,6 +7,9 @@ const { createUUID, randomNumberStr } = require('../util/common-util')
 const RoomDao = require('../dao/room-dao')
 const redis = require('../db/redis')
 const BusinessError = require('../response/business-error')
+const {ROOM_NOT_EXIST} = require("../response/business-error-constants");
+const {getSocketData} = require("./user-service");
+const {SOCKET_USER_STATUS, updateSocketUser, getByIds} = require("./user-service");
 const { sendMessage, SOCKET_MESSAGE_TYPE } = require('../socket/socket-store')
 
 const ROOMS_KEY = 'ROOMS'
@@ -44,6 +47,8 @@ const GAME_USER_NUMBER = 4
 const createRoom = async (user) => {
   const userId = user.id
   const id = createUUID()
+  // 判断用户是否已经存在与房间或游戏中
+  await userSocketStatusCheck(user)
   const roomNumber = await generateRoomNumber()
   const room = {id, roomNumber, hostId: userId, status: ROOM_STATUS.CREATED}
   await RoomDao.createRoom(room)
@@ -53,8 +58,10 @@ const createRoom = async (user) => {
   redis.set(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber), {status: ROOM_STATUS.CREATED, hostId: userId})
   // 添加当前房主到房间用户列表
   redis.listPush(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber), userId)
-  // 设置当前用户状态为已准备
+  // 设置当前用户房间状态为已准备
   redis.hashSet(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber), userId, JSON.stringify({status: USER_STATUS.READY}))
+  // 设置当前用户的状态
+  updateSocketUser(userId, {status: SOCKET_USER_STATUS.IN_ROOM, roomNumber})
   return room
 }
 /**
@@ -65,9 +72,8 @@ const createRoom = async (user) => {
  */
 const joinRoom = async (user, roomNumber) => {
   const userId = user.id
-  if(!await redis.sortedSetExist(ROOMS_KEY, roomNumber)) {
-    throw new BusinessError('房间号不存在')
-  }
+  await userSocketStatusCheck(user)
+  await roomExistCheck(roomNumber)
   const userIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
   const infoUserIdList = [...userIdList]
   if(userIdList.length >= GAME_USER_NUMBER) {
@@ -78,6 +84,8 @@ const joinRoom = async (user, roomNumber) => {
     redis.listPush(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber), userId)
     infoUserIdList.push(userId)
   }
+  // 设置当前用户的状态
+  updateSocketUser(userId, {status: SOCKET_USER_STATUS.IN_ROOM, roomNumber})
   // 设置当前用户状态为未准备
   redis.hashSet(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber), userId, JSON.stringify({status: USER_STATUS.UNREADY}))
   sendMessage(infoUserIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_JOIN, user )
@@ -90,14 +98,22 @@ const joinRoom = async (user, roomNumber) => {
  */
 const exitRoom = async (user, roomNumber) => {
   const userId = user.id
-  if(!await redis.sortedSetExist(ROOMS_KEY, roomNumber)) {
-    throw new BusinessError('房间号不存在')
-  }
+  await userSocketStatusCheck(user, SOCKET_USER_STATUS.IN_ROOM)
+  await roomExistCheck(roomNumber)
   redis.listRemove(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber), userId)
   redis.hashDel(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber), userId)
-
+  // 设置当前用户的状态
+  updateSocketUser(userId, {status: SOCKET_USER_STATUS.ONLINE})
   const userIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
+  // 如果房间没人了， 则删除该房间的信息
+  if(userIdList.length === 0) {
+    deleteRedisRoomInfo()
+    return
+  }
   sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_EXIT, user)
+  // 如果房间还有人，则设置剩下的第一位为房主
+  redis.set(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber), {status: ROOM_STATUS.CREATED, hostId: userIdList[0]})
+  sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_CHANGE_HOST, userIdList[0])
 }
 /**
  * 改变用户状态
@@ -107,9 +123,9 @@ const exitRoom = async (user, roomNumber) => {
  */
 const changeUserStatus = async (user, roomNumber, status) => {
   const userId = user.id
+  await roomExistCheck(roomNumber)
   // 设置当前用户状态
   redis.hashSet(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber), userId, JSON.stringify({status: status}))
-
   const userIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
   sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_STATUS_CHANGE, { user, status })
 }
@@ -120,6 +136,7 @@ const changeUserStatus = async (user, roomNumber, status) => {
  * @param roomNumber 房间号
  */
 const disbandRoom = async (user, roomNumber) => {
+  await roomExistCheck(roomNumber)
   const userIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
   // 设置当前房间信息
   const roomInfoStr = await redis.get(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber))
@@ -131,7 +148,10 @@ const disbandRoom = async (user, roomNumber) => {
     }
     // 解散房间, 删除所有该房间开头的key前缀: room:roomId:*
     deleteRedisRoomInfo(roomNumber)
-    sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_DISBAND, { user, status } )
+    userIdList.forEach(id => {
+      updateSocketUser(id, {status: SOCKET_USER_STATUS.ONLINE})
+    })
+    sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_DISBAND )
   }
 }
 /**
@@ -145,6 +165,7 @@ const deleteRedisRoomInfo = (roomNumber) => {
   // 往redis中添加移除该房间号
   redis.sortedSetDelete(ROOMS_KEY, roomNumber)
 }
+
 /**
  * 开始游戏
  * @param user 用户
@@ -152,9 +173,7 @@ const deleteRedisRoomInfo = (roomNumber) => {
  */
 const startGame = async (user, roomNumber) => {
   const userId = user.id
-  if(!await redis.sortedSetExist(ROOMS_KEY, roomNumber)) {
-    throw new BusinessError('房间号不存在')
-  }
+  await roomExistCheck(roomNumber)
   const userIdList = redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
   if(userIdList.length < GAME_USER_NUMBER) {
     throw new BusinessError('游戏人数不足')
@@ -170,6 +189,42 @@ const startGame = async (user, roomNumber) => {
   sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_GAME_START)
 }
 
+/**
+ * 获取房间信息
+ * @param roomNumber 房间号
+ */
+const getRoomInfo = async (roomNumber) => {
+  await roomExistCheck(roomNumber)
+  const roomInfoStr = await redis.get(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber))
+  let roomInfo = roomInfoStr ? JSON.parse(roomInfoStr) : {}
+  const roomUserIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
+  const userList = await getByIds(roomUserIdList)
+  const userHash = await redis.hashGetAll(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber))
+  const roomUserList = userList.map(item => {
+    const dataStr = userHash[item.id]
+    let roomData = dataStr ? JSON.parse(dataStr) : {}
+    return {
+      ...item,
+      roomData
+    }
+  })
+  return {
+    roomInfo,
+    roomUserList
+  }
+}
+
+const userSocketStatusCheck = async (user, status = SOCKET_USER_STATUS.ONLINE) => {
+  const data = await getSocketData(user)
+  if(data && data.status !== status) {
+    throw new BusinessError('用户状态异常')
+  }
+}
+const roomExistCheck = async (roomNumber) => {
+  if(!await redis.sortedSetExist(ROOMS_KEY, roomNumber)) {
+    throw BusinessError.ofStatus(ROOM_NOT_EXIST)
+  }
+}
 // 生成房间号
 const generateRoomNumber = async () => {
   const roomNumber = randomNumberStr(6)
@@ -192,5 +247,6 @@ module.exports = {
   exitRoom,
   changeUserStatus,
   joinRoom,
-  disbandRoom
+  disbandRoom,
+  getRoomInfo
 }

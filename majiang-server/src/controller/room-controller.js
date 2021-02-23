@@ -11,11 +11,17 @@ const ResponseModel = require('../response/response-model')
 router.prefix('/room')
 // 认证拦截
 router.use( '/', authenticationFilter)
+
+router.get('/info/:roomNumber', async (ctx, next) => {
+  const roomNumber = ctx.params.roomNumber
+  ctx.body = ResponseModel.ofSuccess(await RoomService.getRoomInfo(roomNumber))
+})
+
 /**
  * 创建房间并进入
  */
 router.post('/create', async (ctx, next) => {
-  ctx.body = await RoomService.createRoom(ctx.session)
+  ctx.body = ResponseModel.ofSuccess(await RoomService.createRoom(ctx.session))
 })
 
 /**

@@ -36,6 +36,10 @@ const SOCKET_MESSAGE_TYPE = {
     code: 1006,
     name: '房间->解散房间'
   },
+  ROOM_CHANGE_HOST: {
+    code: 1007,
+    name: '房间->改变房主'
+  },
   ROOM_GAME_START: {
     code: 1010,
     name: '房间->游戏开始'

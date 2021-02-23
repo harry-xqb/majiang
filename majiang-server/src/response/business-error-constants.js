@@ -13,7 +13,13 @@ const SYSTEM_ERROR = {
   msg: '系统开小差了'
 }
 
+const ROOM_NOT_EXIST = {
+  code: 404,
+  msg: '房间号不存在'
+}
+
 module.exports = {
   USER_NOT_LOGIN,
-  SYSTEM_ERROR
+  SYSTEM_ERROR,
+  ROOM_NOT_EXIST
 }
