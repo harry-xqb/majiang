@@ -17,6 +17,7 @@ const sessionFilter = async (ctx, next) => {
     }
   }
   ctx.session = user
+  ctx.token = token
   await next()
 }
 

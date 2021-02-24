@@ -67,12 +67,10 @@ const getSocketUserList = async (user) => {
     socketUserList.push({user, socketData: userSocketMap[user.id]})
   })
   const onLineSocketUserList = socketUserList.filter(item => item.user.id !== user.id)
-  const currentSocketUser = socketUserList.find(item => item.user.id === user.id)
   const offLineUserList = await UserDao.getByNotInIds(userIds)
   const offLineSocketUserList = offLineUserList.map(user => ({user, socketData: {status: SOCKET_USER_STATUS.OFFLINE}}))
   return {
     onLineSocketUserList,
-    currentSocketUser,
     offLineSocketUserList
   }
 }

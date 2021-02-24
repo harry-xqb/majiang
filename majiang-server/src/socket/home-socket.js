@@ -41,7 +41,7 @@ router.all('/home/:tokenId', socketExceptionFilter, async (ctx) => {
       sendMessage(otherUserIds, SOCKET_MESSAGE_TYPE.SYSTEM_DISCONNECT, {user, socketData: {status: SOCKET_USER_STATUS.OFFLINE}})
       const currentSocketData = await getSocketData(user)
       // 清除在线记录
-      if(currentSocketData && JSON.parse(currentSocketData).status === SOCKET_USER_STATUS.ONLINE) {
+      if(currentSocketData && currentSocketData.status === SOCKET_USER_STATUS.ONLINE) {
         await deleteSocketData(user)
       }
       delete socketStore[userId]

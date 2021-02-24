@@ -56,13 +56,25 @@ const SOCKET_MESSAGE_TYPE = {
     code: 2003,
     name: '系统消息->掉线'
   },
+  SYSTEM_USER_STATUS_CHANGE: {
+    code: 2004,
+    name: '系统消息->在线用户状态改变'
+  },
+  SYSTEM_USER_LIST_STATUS_CHANGE: {
+    code: 2005,
+    name: '系统消息->批量在线用户状态改变'
+  },
+  SYSTEM_USER_ROOM_INVITE: {
+    code: 2006,
+    name: '系统消息->邀请加入游戏'
+  }
 }
 
 /**
  * 通过websocket发送消息
+ * @param userList 要发送的用户列表
  * @param messageType 消息类型
  * @param responseData 响应数据
- * @param userList 要发送的用户列表
  */
 const sendMessage = (userList, messageType, responseData) => {
   userList.forEach(userId => {
@@ -71,9 +83,19 @@ const sendMessage = (userList, messageType, responseData) => {
     }
   })
 }
+/**
+ * 给所有在线用户发送信息
+ * @param messageType 消息类型
+ * @param responseData 响应数据
+ */
+const sendMessageToAll = (messageType, responseData) => {
+  const allOnlineUserList = Object.keys(socketStore)
+  sendMessage(allOnlineUserList, messageType, responseData)
+}
 
 module.exports = {
   socketStore,
   sendMessage,
+  sendMessageToAll,
   SOCKET_MESSAGE_TYPE
 }

@@ -12,9 +12,10 @@ router.prefix('/room')
 // 认证拦截
 router.use( '/', authenticationFilter)
 
+// 获取房间信息
 router.get('/info/:roomNumber', async (ctx, next) => {
   const roomNumber = ctx.params.roomNumber
-  ctx.body = ResponseModel.ofSuccess(await RoomService.getRoomInfo(roomNumber))
+  ctx.body = ResponseModel.ofSuccess(await RoomService.getRoomInfo(roomNumber, ctx.session))
 })
 
 /**
@@ -69,5 +70,10 @@ router.post('/game/start', async (ctx, next) => {
   ctx.body = ResponseModel.ofSuccess()
 })
 
+router.post('/invite', async (ctx, next) => {
+  const { roomNumber, inviteUserId } = ctx.request.body
+  await RoomService.inviteUser(ctx.session, roomNumber, inviteUserId)
+  ctx.body = ResponseModel.ofSuccess()
+})
 
 module.exports = router

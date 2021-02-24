@@ -28,7 +28,8 @@ router.get('/socketListInfo', authenticationFilter,async (ctx, next) => {
  * 获取当前登录用户信息
  */
 router.get('/info', authenticationFilter, async (ctx, next) => {
-  ctx.body = ResponseModel.ofSuccess(ctx.session);
+  const socketData = await UserService.getSocketData(ctx.session)
+  ctx.body = ResponseModel.ofSuccess({user: ctx.session, socketData});
 })
 
 /**
@@ -36,6 +37,14 @@ router.get('/info', authenticationFilter, async (ctx, next) => {
  */
 router.post('/create', async (ctx, next) => {
   ctx.body = ResponseModel.ofSuccess(await UserService.createUser(ctx.request.body))
+})
+
+/**
+ * 登出
+ */
+router.post('/logout', authenticationFilter, async (ctx, next) => {
+  TokenUtil.deleteToken(ctx.token)
+  ctx.body = ResponseModel.ofSuccess()
 })
 
 module.exports = router

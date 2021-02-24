@@ -10,7 +10,7 @@ const BusinessError = require('../response/business-error')
 const {ROOM_NOT_EXIST} = require("../response/business-error-constants");
 const {getSocketData} = require("./user-service");
 const {SOCKET_USER_STATUS, updateSocketUser, getByIds} = require("./user-service");
-const { sendMessage, SOCKET_MESSAGE_TYPE } = require('../socket/socket-store')
+const { sendMessage, SOCKET_MESSAGE_TYPE, sendMessageToAll } = require('../socket/socket-store')
 
 const ROOMS_KEY = 'ROOMS'
 const ROOM_KEY_TYPE = {
@@ -62,6 +62,8 @@ const createRoom = async (user) => {
   redis.hashSet(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber), userId, JSON.stringify({status: USER_STATUS.READY}))
   // 设置当前用户的状态
   updateSocketUser(userId, {status: SOCKET_USER_STATUS.IN_ROOM, roomNumber})
+  // 向所有在线用户发送当前用户的状态
+  sendMessageToAll(SOCKET_MESSAGE_TYPE.SYSTEM_USER_STATUS_CHANGE, {status: SOCKET_USER_STATUS.IN_ROOM, userId})
   return room
 }
 /**
@@ -75,20 +77,20 @@ const joinRoom = async (user, roomNumber) => {
   await userSocketStatusCheck(user)
   await roomExistCheck(roomNumber)
   const userIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
-  const infoUserIdList = [...userIdList]
   if(userIdList.length >= GAME_USER_NUMBER) {
     throw new BusinessError('房间人数已满')
   }
-  if(!userIdList.includes(userId)) {
-    // 添加当前用户到房间用户列表
-    redis.listPush(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber), userId)
-    infoUserIdList.push(userId)
+  if(userIdList.includes(userId)) {
+    throw new BusinessError('您已在房间中')
   }
+  // 添加当前用户到房间用户列表
+  redis.listPush(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber), userId)
   // 设置当前用户的状态
   updateSocketUser(userId, {status: SOCKET_USER_STATUS.IN_ROOM, roomNumber})
   // 设置当前用户状态为未准备
   redis.hashSet(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber), userId, JSON.stringify({status: USER_STATUS.UNREADY}))
-  sendMessage(infoUserIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_JOIN, user )
+  sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_JOIN, user )
+  sendMessageToAll(SOCKET_MESSAGE_TYPE.SYSTEM_USER_STATUS_CHANGE, {status: SOCKET_USER_STATUS.IN_ROOM, userId})
 }
 
 /**
@@ -105,18 +107,29 @@ const exitRoom = async (user, roomNumber) => {
   // 设置当前用户的状态
   updateSocketUser(userId, {status: SOCKET_USER_STATUS.ONLINE})
   const userIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
+  // 通知所有用户当前用户状态为在线
+  sendMessageToAll(SOCKET_MESSAGE_TYPE.SYSTEM_USER_STATUS_CHANGE, {status: SOCKET_USER_STATUS.ONLINE, userId})
   // 如果房间没人了， 则删除该房间的信息
   if(userIdList.length === 0) {
     deleteRedisRoomInfo()
     return
   }
-  sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_EXIT, user)
-  // 如果房间还有人，则设置剩下的第一位为房主
-  redis.set(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber), {status: ROOM_STATUS.CREATED, hostId: userIdList[0]})
-  sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_CHANGE_HOST, userIdList[0])
+  // 如果当前退出的用户是房主，则设置剩下用户中的第一位为房主
+  const roomInfoStr =  await redis.get(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber))
+  const hostId = roomInfoStr ? JSON.parse(roomInfoStr).hostId : null
+  if(hostId === userId) {
+    const newHostId = userIdList[0]
+    // 设置新房主用户状态为已准备
+    redis.hashSet(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber), newHostId, JSON.stringify({status: USER_STATUS.READY}))
+    // 设置当前房间的新房主
+    redis.set(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber), {status: ROOM_STATUS.CREATED, hostId: newHostId})
+    sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_EXIT, {user, hostId: newHostId})
+    return
+  }
+  sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_USER_EXIT, {user})
 }
 /**
- * 改变用户状态
+ * 改变房间用户状态
  * @param user 用户
  * @param roomNumber 房间号
  * @param status 用户状态  0：未准备 1: 已准备
@@ -152,6 +165,7 @@ const disbandRoom = async (user, roomNumber) => {
       updateSocketUser(id, {status: SOCKET_USER_STATUS.ONLINE})
     })
     sendMessage(userIdList, SOCKET_MESSAGE_TYPE.ROOM_DISBAND )
+    sendMessageToAll(SOCKET_MESSAGE_TYPE.SYSTEM_USER_LIST_STATUS_CHANGE, {status: SOCKET_USER_STATUS.ONLINE, userIdList})
   }
 }
 /**
@@ -193,18 +207,24 @@ const startGame = async (user, roomNumber) => {
  * 获取房间信息
  * @param roomNumber 房间号
  */
-const getRoomInfo = async (roomNumber) => {
+const getRoomInfo = async (roomNumber, user) => {
   await roomExistCheck(roomNumber)
+  const userId = user.id
   const roomInfoStr = await redis.get(generateRoomKey(ROOM_KEY_TYPE.INFO, roomNumber))
   let roomInfo = roomInfoStr ? JSON.parse(roomInfoStr) : {}
-  const roomUserIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
+  let roomUserIdList = await redis.listRange(generateRoomKey(ROOM_KEY_TYPE.USERS, roomNumber))
+  roomUserIdList = roomUserIdList.filter(id => id !== userId)
+  roomUserIdList.unshift(userId)
   const userList = await getByIds(roomUserIdList)
-  const userHash = await redis.hashGetAll(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber))
-  const roomUserList = userList.map(item => {
-    const dataStr = userHash[item.id]
+  const userMap = {}
+  userList.forEach(item => userMap[item.id] = item)
+  const userRoomHash = await redis.hashGetAll(generateRoomKey(ROOM_KEY_TYPE.USER_HASH, roomNumber))
+  const roomUserList = roomUserIdList.map(id => {
+    const dataStr = userRoomHash[id]
+    const userInfo = userMap[id] || {}
     let roomData = dataStr ? JSON.parse(dataStr) : {}
     return {
-      ...item,
+      ...userInfo,
       roomData
     }
   })
@@ -212,6 +232,19 @@ const getRoomInfo = async (roomNumber) => {
     roomInfo,
     roomUserList
   }
+}
+/**
+ * 要求用户到房间
+ * @param user 当前用户
+ * @param roomNumber 房间号
+ * @param inviteUserId 邀请的用户id
+ */
+const inviteUser = async (user, roomNumber, inviteUserId) => {
+  // 检查当前用户是否在房间中
+  await userSocketStatusCheck(user, SOCKET_USER_STATUS.IN_ROOM)
+  // 检查房间是否存在
+  await roomExistCheck(roomNumber)
+  sendMessage([inviteUserId], SOCKET_MESSAGE_TYPE.SYSTEM_USER_ROOM_INVITE, {roomNumber, user})
 }
 
 const userSocketStatusCheck = async (user, status = SOCKET_USER_STATUS.ONLINE) => {
@@ -248,5 +281,6 @@ module.exports = {
   changeUserStatus,
   joinRoom,
   disbandRoom,
-  getRoomInfo
+  getRoomInfo,
+  inviteUser
 }
