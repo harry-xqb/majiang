@@ -12,7 +12,7 @@ import {USER_STATUS, USER_STATUS_MAP} from "../common";
  */
 const UserItem = (props) => {
 
-  const { user, showInvite = false } = props
+  const { user, showInvite = false, onInvite } = props
 
   const statusClass = classNames({
     [styles.status]: true,
@@ -32,7 +32,7 @@ const UserItem = (props) => {
           {USER_STATUS_MAP[user.status]}
         </span>
         {
-          user.status === USER_STATUS.ONLINE && showInvite && <PlusOutlined className={styles.invite}/>
+          user.status === USER_STATUS.ONLINE && showInvite && <PlusOutlined className={styles.invite} onClick={() => onInvite(user.id)}/>
         }
       </div>
     </div>

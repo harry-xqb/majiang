@@ -2,6 +2,7 @@ import React from 'react'
 import styles from "./index.module.scss";
 import {Avatar, Button} from "antd";
 import classNames from "classnames";
+import {USER_PREPARE_STATUS} from "../common";
 
 export const USER_POSITION = {
   BOTTOM: 0,
@@ -9,11 +10,9 @@ export const USER_POSITION = {
   TOP: 2,
   LEFT: 3,
 }
+export const POSITION_ORDER = Object.keys(USER_POSITION).map(key => USER_POSITION[key])
 
-export const PREPARE_STATUS = {
-  UNREADY: 0,
-  READY: 1
-}
+
 
 /**
  * @author  Ta_Mu
@@ -21,7 +20,12 @@ export const PREPARE_STATUS = {
  */
 const User = (props) => {
 
-  const { username, status, position, toggleReady, isHost, onStartGame} = props
+  const { username, status, position, toggleReady, isHost, onStartGame, btnLoading} = props
+
+  // 如果位置不在范围内0~4，则返回空
+  if(!POSITION_ORDER.includes(position)) {
+    return null
+  }
 
   const userClasses = classNames({
     [styles.user]: true,
@@ -34,14 +38,14 @@ const User = (props) => {
   const renderButton = () => {
     if(position === USER_POSITION.BOTTOM) {
       if(isHost) {
-        return <Button style={{marginTop: 5}} type='primary' onClick={onStartGame}>开始游戏</Button>
+        return <Button style={{marginTop: 5}} type='primary' onClick={onStartGame} loading={btnLoading}>开始游戏</Button>
       }
-      if(status === PREPARE_STATUS.READY) {
-        return <Button style={{marginTop: 5}} onClick={toggleReady}>取消准备</Button>
+      if(status === USER_PREPARE_STATUS.READY) {
+        return <Button style={{marginTop: 5}} onClick={() => toggleReady(false)} loading={btnLoading}>取消准备</Button>
       }
-      return <Button style={{marginTop: 5}} type='primary' onClick={toggleReady}>准备</Button>
+      return <Button style={{marginTop: 5}} type='primary' onClick={() => toggleReady(true)} loading={btnLoading}>准备</Button>
     }
-    if(status === PREPARE_STATUS.READY) {
+    if(status === USER_PREPARE_STATUS.READY) {
       return <Button style={{marginTop: 5}} type='text'>已准备</Button>
     }
     return <Button style={{marginTop: 5}} type='text'>未准备</Button>

@@ -6,7 +6,7 @@
 import axios from "axios";
 import { message } from "antd";
 import {delToken, getToken} from "./token-util";
-axios.defaults.timeout = 5000;
+axios.defaults.timeout = 50000;
 axios.defaults.baseURL = "/api";
 
 const DEFAULT_CONFIG = {

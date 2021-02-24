@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import {Input, message, Modal} from "antd";
 import styles from './index.module.scss'
 import http from "../../../util/http";
@@ -22,12 +22,23 @@ const EnterRoomModal = (props) => {
     setInputValueArray(tmpArray)
     if(value.length === 1) {
       if(index < ROOM_INPUT.length - 1) {
-        inputRef[index + 1].focus({cursor: 'all'})
+        inputRef[index + 1]?.focus({cursor: 'all'})
       }else {
         inputRef[index].blur()
       }
     }
   }
+
+  useEffect(() => {
+    if(visible) {
+      // 列表渲染后执行
+      setTimeout(() => {
+        inputRef[0].focus()
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+
   const handleFocus = (e) => {
     e.target.select()
   }
@@ -58,6 +69,11 @@ const EnterRoomModal = (props) => {
       afterOk(roomNumber)
     }
   }
+  const handlePaste = (e) => {
+    const clipText = e.clipboardData.getData('Text')
+    const codeArray = clipText?.substr(0, 6).split('') || []
+    setInputValueArray(codeArray)
+  }
 
   return (
     <Modal
@@ -73,6 +89,7 @@ const EnterRoomModal = (props) => {
             <Input key={item}
                    className={styles.roomNumberInput}
                    maxLength={1}
+                   onPaste={handlePaste}
                    value={inputValueArray[item]}
                    onFocus={handleFocus}
                    ref={ref => inputRef[index] = ref}

@@ -20,3 +20,7 @@ export const USER_STATUS_MAP = {
   [IN_ROOM]: '在房间中',
   [OFFLINE]: '离线',
 }
+export const USER_PREPARE_STATUS = {
+  UNREADY: 0,
+  READY: 1
+}

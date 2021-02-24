@@ -7,6 +7,8 @@ import OnLineList from "../online-list";
 import {useHistory} from 'react-router-dom'
 import EnterRoomModal from "./EnterRoomModal";
 import http from "../../../util/http";
+import {delToken} from "../../../util/token-util";
+import useLogout from "../../../hook/useLogout";
 
 /**
  *
@@ -16,6 +18,8 @@ import http from "../../../util/http";
 const Lobby = () => {
 
   const { state } = useContext(HomeContext)
+
+  const logout = useLogout()
 
   const history = useHistory()
 
@@ -28,9 +32,8 @@ const Lobby = () => {
       title: '是否注销登录',
       icon: <ExclamationCircleOutlined />,
       onOk() {
-        localStorage.removeItem('token')
+        logout()
         message.success('注销成功')
-        history.push('/login')
       },
     });
   }
@@ -45,6 +48,12 @@ const Lobby = () => {
     }
   }
 
+  const handleJoinRoomSuccess = (roomNumber) => {
+    setEnterRoomModalVisible(false)
+    message.success('加入成功!')
+    history.push('/home/room/' + roomNumber)
+  }
+
 
   return (
     <div className='flex-container-row'>
@@ -52,10 +61,7 @@ const Lobby = () => {
         <OnLineList showInvite={false}/>
       </div>
       <div className={styles.userInfo}>
-        <div style={{marginBottom: 10}}>主页</div>
-        <Avatar size={64} style={{marginBottom: 10}}>
-          {state.user?.username}
-        </Avatar>
+        <div style={{marginBottom: 10}}>游戏大厅</div>
         <div style={{marginTop: 20}}>
           <Button type='primary' onClick={() => setEnterRoomModalVisible(true)}>
             加入房间
@@ -68,7 +74,7 @@ const Lobby = () => {
       <div style={{width: 200}}>
         <Button onClick={handleLogout}>注销</Button>
       </div>
-      <EnterRoomModal visible={enterRoomModalVisible} onCancel={() => setEnterRoomModalVisible(false)}/>
+      <EnterRoomModal visible={enterRoomModalVisible} onCancel={() => setEnterRoomModalVisible(false)} afterOk={handleJoinRoomSuccess}/>
     </div>
   )
 }

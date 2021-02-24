@@ -5,10 +5,10 @@
  */
 export const initState = {
   authenticated: false,
-  user: undefined,
+  user: {},
+  socketData: {},
   onLineSocketUserList: [],
   offLineSocketUserList: [],
-  currentSocketUser: {},
   room: {
     roomInfo: {},
     roomUserList: [],
@@ -20,19 +20,19 @@ const SET_SOCKET_USER_TYPE = 'SET_SOCKET_USER_TYPE'
 const SET_ROOM_DATA_TYPE = 'SET_ROOM_DATA_TYPE'
 const SET_ROOM_DATA_USER_LIST_TYPE = 'SET_ROOM_DATA_USER_LIST_TYPE'
 
-export const initUserAction = (user, authenticated = true) => {
+export const initUserAction = ({user, socketData}, authenticated = true) => {
   return {
     type: INIT_USER_TYPE,
     user,
+    socketData,
     authenticated
   }
 }
-export const setSocketUserListAction = (onLineSocketUserList, offLineSocketUserList, currentSocketUser) => {
+export const setSocketUserListAction = (onLineSocketUserList, offLineSocketUserList) => {
   return {
     type: SET_SOCKET_USER_TYPE,
     onLineSocketUserList,
     offLineSocketUserList,
-    currentSocketUser
   }
 }
 export const setRoomDataAction = (roomNumber, roomInfo, roomUserList) => {
@@ -52,12 +52,11 @@ export const setRoomDataUserList = (roomUserList) => {
 
 export const reducer = (state = initState, action) => {
   switch (action.type) {
-    case INIT_USER_TYPE: return {...state, authenticated: action.authenticated, user: action.user}
+    case INIT_USER_TYPE: return {...state, authenticated: action.authenticated, user: action.user, socketData: action.socketData}
     case SET_SOCKET_USER_TYPE: return {
       ...state,
       onLineSocketUserList: action.onLineSocketUserList,
       offLineSocketUserList: action.offLineSocketUserList,
-      currentSocketUser: action.currentSocketUser,
     }
     case SET_ROOM_DATA_TYPE: return {
       ...state,
@@ -70,7 +69,7 @@ export const reducer = (state = initState, action) => {
     case SET_ROOM_DATA_USER_LIST_TYPE: return {
       ...state,
       room: {
-        ...action.room,
+        ...state.room,
         roomUserList: action.roomUserList,
       }
     }

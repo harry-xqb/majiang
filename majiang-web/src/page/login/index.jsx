@@ -32,7 +32,7 @@ const Login = (props) => {
   }
 
   return (
-    <div className='flex-container-col' style={{alignItems: 'center'}}>
+    <div className='flex-container-col' style={{alignItems: 'center', top: 250}}>
       <Form
         {...layout}
         onFinish={handleFinish}
